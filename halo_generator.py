@@ -63,7 +63,7 @@ fit_params = {"t_star":1.0,
              }
 
 # Run the fiducial model, who's DM evolution is the one we're modifying from
-DM_mass = tanh(log_DM_times, # ignore time zero; bad math
+DM_mass = 10**tanh(log_DM_times, # ignore time zero; bad math
                 popt[0], 
                 popt[1], 
                 popt[2],
@@ -78,7 +78,7 @@ model = op.omega_plus(DM_array=DM_array.tolist(), **static_params, **fit_params)
 # np.savetxt(f"cgm_model_fid.txt",
 #            model.ymgal_outer[-1][:30]/model.ymgal_outer[-1][0])
 abundances[0] = model.ymgal_outer[-1][:30]/model.ymgal_outer[-1][0]
-np.savetxt(f"cgm_dm_fid.txt",
+np.savetxt(f"cgm_enrichment/dm_ev/cgm_dm_fid.txt",
            DM_mass)
 
 # Randomly perturb the dark matter evolution (within constraints)
@@ -137,7 +137,7 @@ for i in range(nsamples):
                        popt[3]*k2_mult
                       ) - 12)/12 < 0.001
     
-    DM_mass = tanh(log_DM_times,
+    DM_mass = 10**tanh(log_DM_times,
                     popt[0]+x0_add, 
                     popt[1], 
                     popt[2]*k1_mult,
