@@ -1,0 +1,6 @@
+[submodule "cgm_enrichment/NuPyCEE"]
+	path = cgm_enrichment/NuPyCEE
+	url = https://github.com/NuGrid/NuPyCEE
+[submodule "cgm_enrichment/JINAPyCEE"]
+	path = cgm_enrichment/JINAPyCEE
+	url = https://github.com/clairekope/JINAPyCEE
