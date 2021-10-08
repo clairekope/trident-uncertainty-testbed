@@ -3,26 +3,30 @@
 
 from JINAPyCEE import omega_plus as op
 import numpy as np
+from astropy.cosmology import Planck18
 
-nsamples = 25
+nsamples = 50
+
+logt_z2 = np.log10(Planck18.age(2).to('yr').value)
 
 def tanh(x, x0, y0, k1, k2):
     return (y0+k1) + k1*np.tanh(k2*(x-x0))
 
-atoms = ['H', 'He',  'Li',
-    'Be',  'B',  'C',
-    'N',  'O',  'F',
-    'Ne', 'Na', 'Mg',
-    'Al', 'Si', 'P',
-    'S', 'Cl', 'Ar',
-    'K', 'Ca', 'Sc',
-    'Ti', 'V' , 'Cr',
-    'Mn', 'Fe', 'Co',
-    'Ni', 'Cu', 'Zn']
+atomic_number = {
+    'H' : 1,  'He': 2,  'Li': 3,
+    'Be': 4,  'B' : 5,  'C' : 6,
+    'N' : 7,  'O' : 8,  'F' : 9,
+    'Ne': 10, 'Na': 11, 'Mg': 12,
+    'Al': 13, 'Si': 14, 'P' : 15,
+    'S' : 16, 'Cl': 17, 'Ar': 18,
+    'K' : 19, 'Ca': 20, 'Sc': 21,
+    'Ti': 22, 'V' : 23, 'Cr': 24,
+    'Mn': 25, 'Fe': 26, 'Co': 27,
+    'Ni': 28, 'Cu': 29, 'Zn': 30}
 
-abundances = np.empty((nsamples+1, len(atoms)))
+abundances = np.empty((nsamples+1, len(atomic_number)))
 
-popt = np.array([ 9.22995756, 10.34229018,  0.95413284,  1.03287417])
+popt = [8,9,1.75,1]
 
 # Set up time steps for dark matter evolution
 log_DM_times = np.array(
@@ -43,7 +47,7 @@ DM_times = np.concatenate(([0], 10**log_DM_times))
 
 # Set model parameters, including best fits to MW values
 static_params = {'mgal':1.0, 
-                 'm_DM_0':1.0e12,
+                 #'m_DM_0':1.0e12,
                  'DM_outflow_C17':True,
                  'C17_eta_z_dep':True,
                  'redshift_f':0.0,
@@ -72,13 +76,20 @@ DM_mass = np.concatenate(([DM_mass[0]], DM_mass)) # Add zero mass by hand
 
 DM_array = np.column_stack((DM_times, DM_mass))
 
-model = op.omega_plus(DM_array=DM_array.tolist(), **static_params, **fit_params)
+model = op.omega_plus(DM_array=DM_array.tolist(), m_DM_0=DM_mass[-1],
+                      **static_params, **fit_params)
 
 # Save CGM abundances, normalized to H, in order of atomic number up to Zn
-# np.savetxt(f"cgm_model_fid.txt",
-#            model.ymgal_outer[-1][:30]/model.ymgal_outer[-1][0])
-abundances[0] = model.ymgal_outer[-1][:30]/model.ymgal_outer[-1][0]
-np.savetxt(f"cgm_enrichment/dm_ev/cgm_dm_fid.txt",
+this_abun = np.zeros(len(atomic_number))
+for iso, isotope in enumerate(model.inner.history.isotopes): 
+    try:
+        atom = atomic_number[isotope.split('-')[0]] - 1
+    except KeyError:
+        continue
+    this_abun[atom] += model.ymgal_outer[-1][iso]
+
+abundances[0] = this_abun[:30]/this_abun[0]
+np.savetxt(f"z2_2e12/dm_ev/cgm_dm_fid.txt",
            DM_mass)
 
 # Randomly perturb the dark matter evolution (within constraints)
@@ -98,11 +109,11 @@ for i in range(nsamples):
                 popt[1], 
                 popt[2]*k1_mult,
                 popt[3]*k2_mult
-               ) - popt[1])/popt[1] > 0.001:
+               ) - 9)/9 > 0.01:
         #print("Adjusting k2 multiplier")
         k2_mult += 0.1
 
-    # Adjust k1 multiplier (vertical stretch) so that RHS is close to target
+    # Adjust k1 multiplier (vertical stretch) so that RHS is  close to target
     rhs_err = (tanh(np.log10(1.3e10), 
                     popt[0]+x0_add, 
                     popt[1],
@@ -115,12 +126,12 @@ for i in range(nsamples):
             k1_mult *= 0.9
         elif rhs_err < 0: # undershooting
             k1_mult *= 1.1
-        rhs_err = (tanh(np.log10(1.3e10), 
+        rhs_err = (tanh(logt_z2, 
                         popt[0]+x0_add,
                         popt[1],
                         popt[2]*k1_mult,
                         popt[3]*k2_mult
-                       ) - 12)/12
+                       ) - 12.3)/12.3
 
     # be looser re: LHS requirement now that I've fiddled with the function params a bunch
     assert np.abs(tanh(6,                
@@ -135,7 +146,7 @@ for i in range(nsamples):
                        popt[1], 
                        popt[2]*k1_mult,
                        popt[3]*k2_mult
-                      ) - 12)/12 < 0.001
+                      ) - 12.3)/12.3 < 0.1
     
     DM_mass = 10**tanh(log_DM_times,
                     popt[0]+x0_add, 
@@ -146,17 +157,24 @@ for i in range(nsamples):
     
     DM_array = np.column_stack((DM_times, DM_mass))
     
-    model = op.omega_plus(DM_array=DM_array.tolist(), **static_params, **fit_params)
+    model = op.omega_plus(DM_array=DM_array.tolist(), m_DM_0=DM_mass[-1],
+                          **static_params, **fit_params)
     
     # Save CGM abundances, normalized to H, in order of atomic number
-    # np.savetxt(f"cgm_model_{i:03d}.txt",
-    #            model.ymgal_outer[-1][:30]/model.ymgal_outer[-1][0])
-    abundances[i+1] = model.ymgal_outer[-1][:30]/model.ymgal_outer[-1][0]
-    np.savetxt(f"cgm_enrichment/dm_ev/cgm_dm_{i:03d}.txt",
+    this_abun = np.zeros(len(atomic_number))
+    for iso, isotope in enumerate(model.inner.history.isotopes): 
+        try:
+            atom = atomic_number[isotope.split('-')[0]] - 1
+        except KeyError:
+            continue
+        this_abun[atom] += model.ymgal_outer[-1][iso]
+    
+    abundances[i+1] = this_abun[:30]/this_abun[0]
+    np.savetxt(f"z2_2e12/dm_ev/cgm_dm_{i:03d}.txt",
                DM_mass)
 
-header = str(atoms[0])
-for a in atoms[1:]:
-    header += ' ' + str(a)
+header = '#'
+for a in atomic_number.keys(): # order isn't guarenteed but nothing modified dict
+    header += ' ' + a
     
-np.savetxt("cgm_enrichment/cgm_abundances.txt", abundances, header=header)
+np.savetxt("z2_2e12/cgm_abundances.txt", abundances, header=header)
