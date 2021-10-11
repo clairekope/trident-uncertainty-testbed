@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
+import os
 import numpy as np
 from JINAPyCEE import omega_plus as op
 from mpi4py import MPI
@@ -53,10 +54,16 @@ if rank == 0:
 
     cosmo = FlatLambdaCDM(H0=69.5, Om0=0.285, Ob0=0.0461) # FOGGIE I
     
-    foggie_dir = "/home/claire/foggie/foggie/halo_infos"
+    foggie_dir = os.path.join(os.environ.get("HOME"), "foggie", "foggie", "halo_infos")
 
-    rvir_masses = Table.read(foggie_dir + "/00" + str(halo) + "/nref11c_nref9f/rvir_masses.hdf5")
-    sfr = np.genfromtxt(foggie_dir + "/00" + str(halo) + "/nref11c_nref9f/sfr",
+    rvir_masses = Table.read(os.path.join(foggie_dir,
+                                          "00" + str(halo),
+                                          "nref11c_nref9f",
+                                          "rvir_masses.hdf5"))
+    sfr = np.genfromtxt(os.path.join(foggie_dir,
+                                     "00" + str(halo),
+                                     "nref11c_nref9f",
+                                     "sfr"),
                         dtype=[('snaptype',"|U2"), ('z',float), ('sfr',float)])
 
     # Save SFR to file
