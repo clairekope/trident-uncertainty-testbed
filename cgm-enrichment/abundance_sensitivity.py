@@ -38,7 +38,7 @@ param_guide = {'mass_loading': 0,
 
 # Only used by root but easily modified if up top
 bounds = {'mass_loading': (0.1, 10),
-          'exp_ml':       (1, 4),    # will only choose integers
+          'exp_ml':       (1, 4),
           'f_t_ff':   (1, 10),
          }
 
@@ -159,11 +159,9 @@ if rank == 0:
     param_var = np.empty((nsamples, (len(param_guide))), dtype=np.double)
     
     rng = np.random.default_rng()
-    
-    param_var[:, param_guide['mass_loading']] = rng.uniform(*bounds['mass_loading'], nsamples)
-    param_var[:, param_guide['exp_ml']] = rng.integers(*bounds['exp_ml'], nsamples)
-    param_var[:, param_guide['f_t_ff']] = rng.uniform(*bounds['f_t_ff'], nsamples)
-    #param_var[:, param_guide['t_ff_index']] = rng.uniform(1/3,1, nsamples)
+
+    for param, col in param_guide.items():
+        param_var[:, col] = rng.uniform(*bounds[param], nsamples)
 
 # Each process runs one model of each varied parameter
 # Scatter will break up rows of the send buffer
@@ -179,7 +177,8 @@ comm.Scatter(param_var,  my_params, root=0)
 my_abund = np.zeros((len(param_guide), len(atomic_number)+1), dtype=np.double)
 
 for param, col in param_guide.items():
-    
+
+    default = flow[param]
     flow[param] = my_params[col]
 
     model = op.omega_plus(m_DM_0=DM_array[-1,1], mgal=1e1,
@@ -204,6 +203,9 @@ for param, col in param_guide.items():
 
     my_abund[col] /= my_abund[col][1] # Normalize to hydrogen
     my_abund[col][0] = flow[param] # Preserve modified param
+
+    # Reset modified parameter so we're only modifying one at a time
+    flow[param] = default
 
 # Gather model results
 abundance_var = None
