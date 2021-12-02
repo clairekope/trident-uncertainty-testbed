@@ -1,4 +1,5 @@
 *~
 *.txt
+*.png
 *.ipynb
 .ipynb_checkpoints
