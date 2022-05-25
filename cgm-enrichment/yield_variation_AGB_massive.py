@@ -38,27 +38,15 @@ solar_abundance = np.array([1.00e+00, 1.00e-01, 2.04e-09,
     1.78e-06, 1.62e-08, 3.98e-08])
 
 
-########################
-# Setup table variations
-########################
+###########################################
+# Setup ABG & massive star yield variations
+###########################################
 
-yield_names = {"table":"Massive & AGB Stellar",
-               "nsmerger_table":"NS Merger",
-               "pop3_table":"Pop 3 Stellar",
-               "sn1a_table":"SNe 1a"}
 
-# First entry is default for each table
-yield_vars = {"table":{"R18+F12":"yield_tables/agb_and_massive_stars_nugrid_MESAonly_fryer12delay.txt",
-                       "K10+LC18":"yield_tables/agb_and_massive_stars_K10_LC18_Ravg.txt",
-                       "C15+N13":"yield_tables/agb_and_massive_stars_C15_N13_0_0_HNe.txt"},
-              "nsmerger_table":{"A07":"yield_tables/r_process_arnould_2007.txt",
-                                "R14":"yield_tables/r_process_rosswog_2014.txt"},
-              "pop3_table":{"H10":"yield_tables/popIII_heger10.txt",
-                            "N13":"yield_tables/popIII_N13.txt"},
-              "sn1a_table":{"T86":"yield_tables/sn1a_t86.txt",
-                            "T03":"yield_tables/sn1a_t03.txt",
-                            "I99+W7":"yield_tables/sn1a_i99_W7.txt",
-                            "S12":"yield_tables/sn1a_ivo12_stable_z.txt"}}
+with open("yield_list_AGB_massive.txt","r") as f:
+    yield_tables = f.read().split("\n")
+    if '' in yield_tables:
+        yield_tables.remove('') # remove end of file newline
 
 
 ######################################
@@ -100,7 +88,7 @@ assert (np.diff(DM_array[:,0]) > 0).all()
 
 
 ##########################
-# Default model parameters (global)
+# Model parameters (global)
 ##########################
 
 control = {'special_timesteps':0,
@@ -141,64 +129,39 @@ flow = {'DM_outflow_C17':True,
            't_ff_index':1 # redshift dependence; -3*param/2 
           } 
 
-for table_param, table_dict in yield_vars.items():
-
-    abundances = np.zeros((len(table_dict), len(atomic_number)),
-                          dtype=np.double)
     
-    fig1, ax1 = plt.subplots()
-    fig2, ax2 = plt.subplots()
+abundances = np.zeros((len(yield_tables), len(atomic_number)), dtype=np.double)
     
-    for row, (table_name, table) in enumerate(table_dict.items()):
+for row, table_name in enumerate(yield_tables):
 
-        model = op.omega_plus(m_DM_0=DM_array[-1,1], mgal=1e1,
-                              **control,
-                              **DM_evolution,
-                              **flow,
-                              **sf_fb,
-                              **yields,
-                              Grackle_on=True,
-                              **{table_param:table}
-                                     )
+    model = op.omega_plus(m_DM_0=DM_array[-1,1], mgal=1e1,
+                          **control,
+                          **DM_evolution,
+                          **flow,
+                          **sf_fb,
+                          **yields,
+                          **{"table":"yield_tables/"+table_name},
+                          Grackle_on=True)
 
-        for i, isotope in enumerate(model.inner.history.isotopes):
+    for i, isotope in enumerate(model.inner.history.isotopes):
 
-            try:
-                atom = atomic_number[isotope.split('-')[0]] - 1
-            except KeyError:
-                continue
+        try:
+            atom = atomic_number[isotope.split('-')[0]] - 1
+        except KeyError:
+            continue
 
-            abundances[row, atom] += model.ymgal_outer[-1][i]
+        abundances[row, atom] += model.ymgal_outer[-1][i]
 
-        abundances[row] /= abundances[row, 0]
+    abundances[row] /= abundances[row, 0]
+
+#########################
+# Save abundances to file
+#########################
+
+header = ''
+for a in atomic_number.keys(): # order isn't guarenteed but nothing modified dict
+    header += a + ' '
     
-        # Plot current abundance
-        ax1.plot(np.log10(abundances[row])-np.log10(solar_abundance), label=table_name)
-        
-        if row > 0:
-            ax2.semilogy(np.abs(abundances[row] -  abundances[0]), 
-                         marker='.', label=table_name)
-            
-    ax1.axhline(0, color='gray', ls='--')
-    ax1.legend()
-    ax1.set_title(f"Altering {yield_names[table_param]} Yields")
-    ax1.set_xlabel("Atomic Number")
-    ax1.set_ylabel("Abundance [X/H]")
-    #ax1.set_ylim(-8, 3)
-    ax1.set_xlim(0,30)
-    
-    fig1.tight_layout()
-    fig1.savefig(yield_names[table_param].replace(' ','_').lower() + '_xh.png')
-    plt.close(fig1)
-    del fig1
+assert "H He Li" in header, "Order of atom labels is not as expected!"
 
-    ax2.grid(axis='y')
-    ax2.legend()
-    ax2.set_xlabel("Atomic Number")
-    ax2.set_ylabel("Difference from Default")
-    ax2.set_xlim(0,30)
-    
-    fig2.tight_layout()
-    fig2.savefig(yield_names[table_param].replace(' ','_').lower() + '_var.png')
-    plt.close(fig2)
-    del fig2
+np.savetxt("abundances_AGB_massive_yields.csv", abundances, delimiter=',', header=header)
