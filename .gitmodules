@@ -4,3 +4,9 @@
 [submodule "cgm-enrichment/JINAPyCEE"]
 	path = cgm-enrichment/JINAPyCEE
 	url = https://github.com/clairekope/JINAPyCEE
+[submodule "uv-backgrounds/cloudy_cooling_tools"]
+	path = uv-backgrounds/cloudy_cooling_tools
+	url = git@github.com:clairekope/cloudy_cooling_tools.git
+[submodule "uv-backgrounds/c10.00-b"]
+	path = uv-backgrounds/c10.00-b
+	url = git@github.com:brittonsmith/c10.00-b.git
