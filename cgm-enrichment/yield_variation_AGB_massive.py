@@ -5,7 +5,7 @@
 
 import os
 import numpy as np
-import matplotlib.pyplot as plt
+import astropy.units as u
 from astropy.table import Table
 from astropy.cosmology import FlatLambdaCDM
 from JINAPyCEE import omega_plus as op
@@ -13,6 +13,8 @@ from scipy.ndimage import gaussian_filter1d
 
 halo = 8508
 cosmo = FlatLambdaCDM(H0=69.5, Om0=0.285, Ob0=0.0461) # FOGGIE I
+
+target_redshifts = [1.5,2.0,2.5]
 
 atomic_number = {
     'H' : 1,  'He': 2,  'Li': 3,
@@ -87,9 +89,9 @@ DM_array[0 , 1] = DM_array[1, 1]
 assert (np.diff(DM_array[:,0]) > 0).all()
 
 
-##########################
+###########################
 # Model parameters (global)
-##########################
+###########################
 
 control = {'special_timesteps':0,
            'dt':1e7,
@@ -129,8 +131,12 @@ flow = {'DM_outflow_C17':True,
            't_ff_index':1 # redshift dependence; -3*param/2 
           } 
 
-    
-abundances = np.zeros((len(yield_tables), len(atomic_number)), dtype=np.double)
+######################
+# Calculate abundances
+######################
+
+abundances = np.zeros((len(target_redshifts), len(yield_tables), len(atomic_number)),
+                      dtype=np.double)
     
 for row, table_name in enumerate(yield_tables):
 
@@ -143,16 +149,32 @@ for row, table_name in enumerate(yield_tables):
                           **{"table":"yield_tables/"+table_name},
                           Grackle_on=True)
 
-    for i, isotope in enumerate(model.inner.history.isotopes):
+    ages = model.inner.history.age * u.yr
 
-        try:
-            atom = atomic_number[isotope.split('-')[0]] - 1
-        except KeyError:
-            continue
+    for z_ind, z in enumerate(target_redshifts):
+        print("Redshift:", z)
+        
+        this_abun = abundances[z_ind]
 
-        abundances[row, atom] += model.ymgal_outer[-1][i]
+        # Find the age index most closely corresponding to this redshift
+        target_age = cosmo.age(z)
+        age_ind = np.where(ages < target_age)[0][-1] # age below
 
-    abundances[row] /= abundances[row, 0]
+        # Is the next age index closer?
+        if (ages[age_ind+1] - target_age) < np.abs(ages[age_ind] - target_age):
+          age_ind += 1
+
+        # Iterate over all isotopes to get abundances at this redshift
+        for i, isotope in enumerate(model.inner.history.isotopes):
+
+            try:
+                atom = atomic_number[isotope.split('-')[0]] - 1
+            except KeyError:
+                continue
+
+            this_abun[row, atom] += model.ymgal_outer[age_ind][i]
+
+        this_abun[row] /= this_abun[row, 0]
 
 #########################
 # Save abundances to file
@@ -161,7 +183,12 @@ for row, table_name in enumerate(yield_tables):
 header = ''
 for a in atomic_number.keys(): # order isn't guarenteed but nothing modified dict
     header += a + ' '
-    
+
+# Lazy check b/c techincally, dict ordering is not ensured.
 assert "H He Li" in header, "Order of atom labels is not as expected!"
 
-np.savetxt("abundances_AGB_massive_yields.csv", abundances, delimiter=',', header=header)
+for z_ind, z in enumerate(target_redshifts):
+    np.savetxt(f"abundances_AGB_massive_yields_halo{halo}_z{z}.txt", 
+                np.row_stack((solar_abundance, abundances[z_ind])),
+                delimiter=' ', header=header, comments="")
+
