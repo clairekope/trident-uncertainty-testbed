@@ -1,8 +1,15 @@
 *~
+*.png
+*.pdf
+*.ipynb
+*.zip
+
 cgm_abundances.txt
 cgm_dm*.txt
 abundance*.txt
 smoothed_sfr_fine_halo*txt
-*.png
-*.ipynb
+
 .ipynb_checkpoints
+umachine-dr1/
+clump-figures/*/
+

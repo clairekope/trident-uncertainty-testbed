@@ -4,24 +4,38 @@ from matplotlib.lines import Line2D
 from matplotlib.ticker import MultipleLocator
 import pandas as pd
 import numpy as np
-from scipy.stats import spearmanr
+from scipy import stats
+
+atomic_number = {
+    'H' : 1,  'He': 2,  'Li': 3,
+    'Be': 4,  'B' : 5,  'C' : 6,
+    'N' : 7,  'O' : 8,  'F' : 9,
+    'Ne': 10, 'Na': 11, 'Mg': 12,
+    'Al': 13, 'Si': 14, 'P' : 15,
+    'S' : 16, 'Cl': 17, 'Ar': 18,
+    'K' : 19, 'Ca': 20, 'Sc': 21,
+    'Ti': 22, 'V' : 23, 'Cr': 24,
+    'Mn': 25, 'Fe': 26, 'Co': 27,
+    'Ni': 28, 'Cu': 29, 'Zn': 30}
 
 halo_marker_dict = {'2392' : 'o',
                     '4123' : 'x',
                     '5016' : 'v',
                     '5036' : '*',
                     '8508' : 'D'} ##set which marker I want for each halo
+
 halo_names_dict = {'2392'  :  'Hurricane',
-                   '2878'  :  'Cyclone',
+                   #'2878'  :  'Cyclone', # unused for now
                    '4123'  :  'Blizzard',
                    '5016'  :  'Squall',
                    '5036'  :  'Maelstrom',
                    '8508'  :  'Tempest'} ##set FOGGIE names
 
-def get_halo_names(num): ##get the FOGGIE name for each halo ID 
-    if str(num) in halo_names_dict.keys():
-        halo_name = halo_names_dict[str(num)]
-    return halo_name
+halo_colors = {"Hurricane":"olive",
+               "Blizzard":"steelblue",
+               "Squall":"lightcoral",
+               "Maelstrom":"orchid",
+               "Tempest":"seagreen"}
 
 rs_lis = [2.0, 2.5] ##list of rs to analyze, true
 
@@ -66,11 +80,9 @@ ion_dict = {#'C_I' : 'silver',
             'S VI' : 'darkgoldenrod'} ##dictionary of ions to colors
 
 ##set the legends to be the way I want them
-halo_legend = [Line2D([0], [0], lw= 0, color = 'k', marker = 'o', label = 'Hurricane'),
-              Line2D([0], [0],  lw= 0, color = 'k', marker = 'x', label = 'Cyclone'),
-              Line2D([0], [0],  lw= 0, color = 'k', marker = 'v', label = 'Squall'),
-              Line2D([0], [0], lw= 0, color = 'k', marker = '*', label = 'Maelstrom'),
-              Line2D([0], [0], lw= 0, color = 'k', marker = 'D', label = 'Tempest')]
+halo_legend = []
+for halo, marker in halo_marker_dict.items():
+    halo_legend.append(Line2D([0], [0], lw= 0, color = 'k', marker = marker, label = halo_names_dict[halo]))
 
 legend_dict = {'C':[],
                'N':[],
@@ -92,12 +104,13 @@ def set_outer_labels(axes, xlabel, ylabel):
     axes[1,0].set_ylabel(ylabel)
     axes[2,0].set_ylabel(ylabel)
 
+fig1, axes1 = plt.subplots(**subplot_params)
 for rs in rs_lis: ##we want one graph per redshift
 
     fig, axes = plt.subplots(**subplot_params)
     # MAD vs Median Col Dens
     for halo in halo_marker_dict.keys(): ##all the halos
-        name = get_halo_names(halo)
+        name = halo_names_dict.get(halo)
         for ion in ion_dict.keys(): ##all the ions
             elem = ion.split()[0]
             ax = axes[ad[elem]]
@@ -119,7 +132,7 @@ for rs in rs_lis: ##we want one graph per redshift
 
     #fig.suptitle(f"MAD Column Density vs Column Density, Redshift {rs}") 
     fig.legend(handles = halo_legend, ncol = 5, bbox_to_anchor=(0.5, 0.93), bbox_transform=fig.transFigure, loc="upper center")
-    set_outer_labels(axes, "Median $\log(N_{X_i})$", "MAD $\log(N_{X_i})$")
+    set_outer_labels(axes, "Median $\log_{10}(N_{X_i})$", "MAD$\,(\log_{10}\ N_{X_i})$")
     axes[0,0].set_yscale('log')
     axes[0,0].set_xlim(12.4,19.1)
     axes[0,0].xaxis.set_minor_locator(MultipleLocator(0.5))
@@ -131,7 +144,7 @@ for rs in rs_lis: ##we want one graph per redshift
     fig, axes = plt.subplots(**subplot_params)
     # Temperature vs Median Col Dens
     for halo in halo_marker_dict.keys():
-        name = get_halo_names(halo)
+        name = halo_names_dict.get(halo)
         for ion in ion_dict.keys():
             elem = ion.split()[0]
             ax = axes[ad[elem]]
@@ -153,7 +166,7 @@ for rs in rs_lis: ##we want one graph per redshift
 
     #fig.suptitle(f"Temperature vs Column Density, Redshift {rs}")
     fig.legend(handles = halo_legend, ncol = 5, bbox_to_anchor=(0.5, 0.93), bbox_transform=fig.transFigure, loc="upper center")
-    set_outer_labels(axes, "Temperature [K]", "Median $\log(N_{X_i})$")
+    set_outer_labels(axes, "Temperature [K]", "Median $\log_{10}(N_{X_i})$")
     axes[0,0].set_xscale('log')
     axes[0,0].set_xlim(1e1,1e7)
     axes[0,0].set_ylim(12.4,19.1)
@@ -164,7 +177,7 @@ for rs in rs_lis: ##we want one graph per redshift
     fig, axes = plt.subplots(**subplot_params)
     # Median Col Dens vs Distance
     for halo in halo_marker_dict.keys():
-        name = get_halo_names(halo)
+        name = halo_names_dict.get(halo)
         for ion in ion_dict.keys():
             elem = ion.split()[0]
             ax = axes[ad[elem]]
@@ -185,7 +198,7 @@ for rs in rs_lis: ##we want one graph per redshift
       
     #fig.suptitle(f"Distance vs Column Density, Redshift {rs}")
     fig.legend(handles = halo_legend, ncol = 5, bbox_to_anchor=(0.5, 0.93), bbox_transform=fig.transFigure, loc="upper center")
-    set_outer_labels(axes, "Distance from Galaxy [kpc]", "Median $\log(N_{X_i})$")
+    set_outer_labels(axes, "Distance from Galaxy [kpc]", "Median $\log_{10}(N_{X_i})$")
     axes[0,0].set_xscale('log')
     axes[0,0].set_xlim(4e2,4e4)
     axes[0,0].set_ylim(12.4,19.1)
@@ -196,7 +209,7 @@ for rs in rs_lis: ##we want one graph per redshift
     fig, axes = plt.subplots(**subplot_params)
     # MAD vs Median Column Density
     for halo in halo_marker_dict.keys():
-        name = get_halo_names(halo)
+        name = halo_names_dict.get(halo)
         for ion in ion_dict.keys():
             elem = ion.split()[0]
             ax = axes[ad[elem]]
@@ -217,7 +230,7 @@ for rs in rs_lis: ##we want one graph per redshift
       
     #fig.suptitle(f"Density vs Spread of Column Density , Redshift {rs}")
     fig.legend(handles = halo_legend, ncol = 5, bbox_to_anchor=(0.5, 0.93), bbox_transform=fig.transFigure, loc="upper center")
-    set_outer_labels(axes, "Gas Density [g cm$^{-3}$]", "MAD $\log(N_{X_i})$")
+    set_outer_labels(axes, "Gas Density [g cm$^{-3}$]", "MAD$\,(\log_{10}\ N_{X_i})$")
     axes[0,0].set_xscale('log')
     axes[0,0].set_yscale('log')
     axes[0,0].set_xlim(1e-29,1e-22)
@@ -228,7 +241,7 @@ for rs in rs_lis: ##we want one graph per redshift
     fig, axes = plt.subplots(**subplot_params)
     # MAD vs Temperature
     for halo in halo_marker_dict.keys():
-        name = get_halo_names(halo)
+        name = halo_names_dict.get(halo)
         for ion in ion_dict.keys():
             elem = ion.split()[0]
             ax = axes[ad[elem]]
@@ -249,7 +262,7 @@ for rs in rs_lis: ##we want one graph per redshift
       
     #fig.suptitle(f"Temperature vs Spread of Column Density, Redshift {rs}")
     fig.legend(handles = halo_legend, ncol = 5, bbox_to_anchor=(0.5, 0.93), bbox_transform=fig.transFigure, loc="upper center")
-    set_outer_labels(axes, "Temperature [K]", "MAD $\log(N_{X_i})$")
+    set_outer_labels(axes, "Temperature [K]", "MAD$\,(\log_{10}\ N_{X_i})$")
     axes[0,0].set_xscale('log')
     axes[0,0].set_yscale('log')
     axes[0,0].set_xlim(1e1,1e7)
@@ -260,7 +273,7 @@ for rs in rs_lis: ##we want one graph per redshift
     fig, axes = plt.subplots(**subplot_params)
     # MAD vs Distance
     for halo in halo_marker_dict.keys():
-        name = get_halo_names(halo)
+        name = halo_names_dict.get(halo)
         for ion in ion_dict.keys():
             elem = ion.split()[0]
             ax = axes[ad[elem]]
@@ -281,7 +294,7 @@ for rs in rs_lis: ##we want one graph per redshift
       
     #fig.suptitle(f"Distance vs Spread of Column Density, Redshift {rs}")
     fig.legend(handles = halo_legend, ncol = 5, bbox_to_anchor=(0.5, 0.93), bbox_transform=fig.transFigure, loc="upper center")
-    set_outer_labels(axes, "Distance from Galaxy [kpc]", "MAD $\log(N_{X_i})$")
+    set_outer_labels(axes, "Distance from Galaxy [kpc]", "MAD$\,(\log_{10}\ N_{X_i})$")
     axes[0,0].set_xscale('log')
     axes[0,0].set_yscale('log')
     axes[0,0].set_xlim(4e2,4e4)
@@ -292,15 +305,17 @@ for rs in rs_lis: ##we want one graph per redshift
     fig, axes = plt.subplots(**subplot_params)
     # Absorber MAD vs Abundance MAD
     for halo in halo_marker_dict.keys():
-        name = get_halo_names(halo)
+        name = halo_names_dict.get(halo)
+        abun = np.genfromtxt(f"/home/claire/trident_uncertainty/mods/abundances/abundances_AGB_massive_yields_halo{halo}_z{rs}.txt",
+                             skip_header=1)
         for ion in ion_dict.keys():
             elem = ion.split()[0]
             ax = axes[ad[elem]]
             try:
                 ds = pd.read_csv(f'./data/halo{halo}/redshift{rs}/stats/{halo}_z{rs}_{ion.replace(" ","_")}_abun_all-model-families_all-clumps.csv', delim_whitespace = True)
                 if len(ds['density']) != 0:
-                    elem_mad = ds["mad_of_element"] ##MAD elemental abundance vs MAD the col dens
-                    col_dens_spread = ds["mad_for_col_desnity"]
+                    elem_mad = ds["mad_of_element"]/np.median(abun[:,atomic_number[elem]-1]) 
+                    col_dens_spread = ds["mad_for_col_desnity"]/ds["median_col_desnity"] 
                     ax.scatter(elem_mad[col_dens_spread>0], col_dens_spread[col_dens_spread>0], c = ion_dict[ion], marker = halo_marker_dict[halo])
                 else:
                     print(f'No {ion} in halo {halo} z{rs}')
@@ -310,43 +325,74 @@ for rs in rs_lis: ##we want one graph per redshift
 
     for elem in ad.keys():
         ax = axes[ad[elem]]
-        ax.legend(handles=legend_dict[elem], ncol=1)
+        ax.legend(handles=legend_dict[elem], ncol=3)
 
     #fig.suptitle(f"MAD Elemental Abundance vs MAD Column Density, Redshift {rs}; n={len(all_abun)}, r={corr[0]:.2f}, p={corr[1]:.2e}")
     fig.legend(handles = halo_legend, ncol = 5, bbox_to_anchor=(0.5, 0.93), bbox_transform=fig.transFigure, loc="upper center")
-    set_outer_labels(axes, "MAD $A_X$", "MAD $\log(N_{X_i})$")
+    set_outer_labels(axes, "MAD$\,(A_X)\ /\ \mathrm{Med}(A_{X})$", "MAD$\,(\log_{10}\ N_{X_i})\ /\ \mathrm{Med}(\log_{10}\ N_{X_i})$")
     axes[0,0].set_xscale('log')
     axes[0,0].set_yscale('log')
+    axes[0,0].set_xlim(1e-2,1e0)
+    axes[0,0].set_ylim(5e-5,1e-1)
     fig.savefig(f'MAD/mad_vs_elem_mad_z{rs}.png', bbox_inches='tight', dpi = 600)
     plt.close()
     
-    # ##this one is different because it's a histogram and not a scatter plot
-    # diff_list = [] ##initalize list to be put into a histogram
-    # for halo in halo_marker_dict.keys():
-    #     name = get_halo_names(halo)
-    #     for ion in ion_dict.keys():
-    #         try:
-    #             ds = pd.read_csv(f'./data/halo{halo}/redshift{rs}/stats/{halo}_z{rs}_{ion}_abun_all-model-families_all-clumps.csv', delim_whitespace = True)
-    #             if len(ds['density']) != 0:
-    #                 diff = ds["diff_from_solar_abun"] ##get the data from data tables
-    #                 for value in diff:
-    #                     if pd.isna(value) == False:
-    #                         diff_list.append(value) ##make the list of values
-    #                         print('added!')
-    #             else:
-    #                 print(f'No {ion} in halo {halo} z{rs}')
-    #         except FileNotFoundError:
-    #             print(f'This halo, {halo_names_dict[halo]}, had something wierd going on')
-    #             continue
-    # kernel = stats.gaussian_kde(diff_list)
-    # xax = np.linspace(-2.0, 2.0, num = 500)
-    # ax.plot(xax, kernel.evaluate(xax)) ##make the histogram
-    # fig.suptitle(f"Diffrence between Solar Abundance and Median Column Density, Redshift {rs}") ##needs a better title but I can't think of one right now
-    # ax.set_ylabel("relative frequency")
-    # params = {'mathtext.default': 'regular' }          
-    # ax.rcParams.update(params)
-    # ax.set_xlabel("$log(N_{\odot}) - log(N_{med}) [dex]$") ##has to be in dex(order of magnitude) because of how sal the super snake works
-    # fig.savefig(f'./solar_diff_z{rs}.png', bbox_inches='tight', dpi = 600)
-    # plt.close()
+    
+    ##this one is different because it's a histogram and not a scatter plot
+    diff_lists = {'C':[],
+                  'N':[],
+                  'O':[],
+                  'Mg':[],
+                  'Si':[],
+                  'S':[]} ##initalize list to be put into a histogram
+    nan_counter = {'C':0,
+                  'N':0,
+                  'O':0,
+                  'Mg':0,
+                  'Si':0,
+                  'S':0}
+
+    for halo in halo_marker_dict.keys():
+
+        # collect data into lists by element 
+        name = halo_names_dict.get(halo)
+        for ion in ion_dict.keys():
+            elem = ion.split()[0]
+            try:
+                ds = pd.read_csv(f'./data/halo{halo}/redshift{rs}/stats/{halo}_z{rs}_{ion.replace(" ","_")}_abun_all-model-families_all-clumps.csv', delim_whitespace = True)
+                if len(ds['density']) != 0:
+                    diff = -1*ds["diff_from_solar_abun"] ##get the data from data tables
+                    for value in diff:
+                        if pd.isna(value) == False:
+                            diff_lists[elem].append(value) ##make the list of values
+                            #print('added!')
+                        else:
+                            nan_counter[elem] += 1
+                else:
+                    print(f'No {ion} in halo {halo} z{rs}')
+            except FileNotFoundError:
+                print(f'This halo, {halo_names_dict[halo]}, had something wierd going on')
+                continue
+        
+    # plot all halos as one
+    total = 0
+    xax = np.linspace(-2.0, 2.0, num = 500)
+    for elem, data in diff_lists.items():
+        ax = axes1[ad[elem]]
+        kernel = stats.gaussian_kde(data)
+        ax.plot(xax, kernel.evaluate(xax), label=f"z={rs}")#, color=halo_colors[name]) ##make the histogram; color by halo
+        #data = []
+        if rs == 2.5:
+            ax.axvline(0, color='gray', ls='--')
+            ax.text(-2, 2, elem, verticalalignment='center', fontsize='x-large')
+            ax.xaxis.set_minor_locator(MultipleLocator(0.5))
+            
+        print("NaN fraction for", elem, "is", nan_counter[elem]/(len(data)+nan_counter[elem]))
+        
+    #fig.suptitle(f"Diffrence between Solar Abundance and Median Column Density, Redshift {rs}") ##needs a better title but I can't think of one right now
+    set_outer_labels(axes1, "Med$(\log_{10}\ N_{X_i}) - \log_{10}\ N_\odot$ [dex]", "Relative Frequency") ##has to be in dex(order of magnitude) because of how sal the super snake works
+axes1[0,0].legend()
+fig1.savefig(f'./solar_diff_all.png', bbox_inches='tight', dpi = 600)
+
 
 print('All done!')
